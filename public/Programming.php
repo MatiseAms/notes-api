@@ -74,6 +74,7 @@ class Programming {
 				}
 			}
 		}
+		
 
 		if($currentPlay[9]){
 			$lyrics = new MusicXMatch('57259514fe97d9332912ff77bda15492');
