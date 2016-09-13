@@ -2,17 +2,16 @@
 class Programming {
 	function now() {
 		$currentProgramming = file_get_contents('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt');
-		$currentProgramming = explode("\r\n",$currentProgramming);
+		$currentProgramming = explode("\n",$currentProgramming);
 		$currentPlay = false;
 
 		foreach($currentProgramming as $key=>$row){
 			$row = trim($row, '" "');
 			$row = explode('","',$row);
-			// foreach($row as $k => $cell){
-			// 	$row[$k] = str_replace('"',"",$cell);
-			// }
+
 			$currentProgramming[$key] = $row;
 		}
+
 
 		foreach($currentProgramming as $key=>$row){
 			if(isset($row[3])){
@@ -26,15 +25,17 @@ class Programming {
 					$row[5] = $playTime-$currentTime;
 					$row[6] = $endTime-$currentTime;
 
+
 					if($row[5]<0&&$row[6]>0){
-						$currentPlay = $row;
-					}
-					if($row[5]<0){
 						$currentPlay = $row;
 						break;
 					}
-
-					// echo "time: ".$row[3]." - seconds: ".$seconds."\n";
+/*
+					if($row[5]<0){
+						$currentPlay = $row;
+// 						break;
+					}
+*/
 				}
 			}
 		}
@@ -74,7 +75,7 @@ class Programming {
 				}
 			}
 		}
-		
+
 
 		if($currentPlay[9]){
 			$lyrics = new MusicXMatch('57259514fe97d9332912ff77bda15492');
@@ -91,6 +92,47 @@ class Programming {
 		return $currentPlay;
 	}
 	function next() {
-		return array('time'=>date('r'));
+
+		$currentProgramming = file_get_contents('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt');
+		$currentProgramming = explode("\n",$currentProgramming);
+		$currentPlay = false;
+
+		foreach($currentProgramming as $key=>$row){
+			$row = trim($row, '" "');
+			$row = explode('","',$row);
+
+			$currentProgramming[$key] = $row;
+		}
+
+
+		foreach($currentProgramming as $key=>$row){
+			if(isset($row[3])){
+				list($hours,$mins,$secs,$ms) = explode(':',$row[3]);
+				$seconds = mktime($hours,$mins,$secs) - mktime(0,0,0);
+				if($seconds>50){
+					$playTime = strtotime($row[2]." ".substr($row[1],0,-3));
+					$endTime = strtotime('+'.$hours.' hour +'.$mins.' minutes +'.$secs.' seconds',$playTime);
+
+					$currentTime = strtotime("now");
+					$row[5] = $playTime-$currentTime;
+					$row[6] = $endTime-$currentTime;
+
+
+					if($row[5]>0){
+						$currentPlay = $row;
+						break;
+					}
+/*
+					if($row[5]<0){
+						$currentPlay = $row;
+// 						break;
+					}
+*/
+				}
+			}
+		}
+
+		return $currentPlay;
+
 	}
 }
