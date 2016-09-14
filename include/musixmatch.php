@@ -1,143 +1,235 @@
 <?php
-class Programming {
-	function now() {
-  	$currentPlay = false;
-    if(file_exists('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt')){
-  		$currentProgramming = file_get_contents('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt');
-  		$currentProgramming = explode("\n",$currentProgramming);
-
-  		foreach($currentProgramming as $key=>$row){
-  			$row = trim($row, '" "');
-  			$row = explode('","',$row);
-
-  			$currentProgramming[$key] = $row;
-  		}
 
 
-  		foreach($currentProgramming as $key=>$row){
-  			if(isset($row[3])){
-  				list($hours,$mins,$secs,$ms) = explode(':',$row[3]);
-  				$seconds = mktime($hours,$mins,$secs) - mktime(0,0,0);
-  				if($seconds>50){
-  					$playTime = strtotime($row[2]." ".substr($row[1],0,-3));
-  					$endTime = strtotime('+'.$hours.' hour +'.$mins.' minutes +'.$secs.' seconds',$playTime);
-
-  					$currentTime = strtotime("now");
-  					$row[5] = $playTime-$currentTime;
-  					$row[6] = $endTime-$currentTime;
-
-
-  					if($row[5]<0&&$row[6]>0){
-  						$currentPlay = $row;
-  						break;
-  					}
-  /*
-  					if($row[5]<0){
-  						$currentPlay = $row;
-  // 						break;
-  					}
-  */
-  				}
-  			}
-  		}
-
-  		if($currentPlay){
-  			$meta = $currentPlay[0];
-  			$meta = explode("-",$meta);
-  			unset($meta[0]);
-  			$meta = implode(" ",$meta);
-  			$meta = explode("_",$meta);
-
-  			$artist = str_replace("ft ", "feat ",$meta[0]);
-  			$title = str_replace("ft ", "feat ", $meta[1]);
-
-  			$currentPlay[7] = $artist;
-  			$currentPlay[8] = $title;
-
-  			$musix = new MusicXMatch('57259514fe97d9332912ff77bda15492');
-  			$musix->setEndpoint('track.search');
-  			$result = null;
-  			$musix->param_q_track($title);
-  			$musix->param_q_artist($artist);
-  			$musix->param_page_size(100);
-  			try{
-  			  $result = $musix->execute_request();
-  			} catch (Exception $e){
-  			    d($e);
-  			}
-  			if($result){
-  				foreach($result['track_list'] as $track){
-  					if((strtolower($track['track']['track_name'])==strtolower($title)
-  							|| strtolower(str_replace("'",'',$track['track']['track_name']))==strtolower($title))
-  						&&$track['track']['has_lyrics']==1){
-  						$currentPlay[9] = $track;
-  						break;
-  					}
-  				}
-  			}
-  		}
-
-
-  		if(isset($currentPlay[9])){
-  			$lyrics = new MusicXMatch('57259514fe97d9332912ff77bda15492');
-  			$lyrics->setEndpoint('track.lyrics.get');
-  			$lyrics->param_track_id($currentPlay[9]['track']['track_id']);
-  			try{
-  			  $currentPlay[10] = $lyrics->execute_request();
-  				$currentPlay[10]['lyrics']['lyrics_body'] = str_replace("******* This Lyrics is NOT for Commercial use *******",'',$currentPlay[10]['lyrics']['lyrics_body']);
-  			} catch (Exception $e){
-  			    d($e);
-  			}
-  		}
-
-    }
-
-		return $currentPlay;
-	}
-	function next() {
-  	$currentPlay = false;
-    if(file_exists('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt')){
-  		$currentProgramming = file_get_contents('../programming/'.date('mdY').'-TOA/TOA-'.date('mdY-H').'.txt');
-  		$currentProgramming = explode("\n",$currentProgramming);
-  		$currentPlay = false;
-
-  		foreach($currentProgramming as $key=>$row){
-  			$row = trim($row, '" "');
-  			$row = explode('","',$row);
-
-  			$currentProgramming[$key] = $row;
-  		}
-
-
-  		foreach($currentProgramming as $key=>$row){
-  			if(isset($row[3])){
-  				list($hours,$mins,$secs,$ms) = explode(':',$row[3]);
-  				$seconds = mktime($hours,$mins,$secs) - mktime(0,0,0);
-  				if($seconds>50){
-  					$playTime = strtotime($row[2]." ".substr($row[1],0,-3));
-  					$endTime = strtotime('+'.$hours.' hour +'.$mins.' minutes +'.$secs.' seconds',$playTime);
-
-  					$currentTime = strtotime("now");
-  					$row[5] = $playTime-$currentTime;
-  					$row[6] = $endTime-$currentTime;
-
-
-  					if($row[5]>0){
-  						$currentPlay = $row;
-  						break;
-  					}
-  /*
-  					if($row[5]<0){
-  						$currentPlay = $row;
-  // 						break;
-  					}
-  */
-  				}
-  			}
-  		}
-    }
-
-		return $currentPlay;
-
-	}
+if (!function_exists('curl_init')) {
+  throw new Exception('musiXmatch needs the CURL PHP extension.');
 }
+if (!function_exists('json_decode')) {
+  throw new Exception('musiXmatch needs the JSON PHP extension.');
+}
+
+
+
+/**
+ * Thrown when an API call returns an exception.
+ *
+ * @author Anderson Marques <twitter.com/cacovsky>
+ */
+
+
+class MusicXMatchApiException extends  Exception{
+
+    public function __construct($code) {
+
+        $msg = '';
+
+        if ($code != 200 && isset(MusicXMatch::$STATUS_CODES[$code]))
+        {
+            $msg = MusicXMatch::$STATUS_CODES[$code];
+        }
+        else if ($code != 200)
+        {
+            $msg = 'Unknown error';
+        }
+
+        parent::__construct($msg, $code);
+
+    }
+
+}
+
+
+/**
+ * Handles API requests. Parametrization methods are chainable.
+ * For further informatio, go to
+ *  https://developer.musixmatch.com/documentation/
+ *
+ * @author Anderson Marques <http://twitter.com/cacovsky>
+ */
+class MusicXMatch
+{
+
+
+    /**
+     * Version.
+     */
+    const VERSION = '0.0.1';
+
+    /**
+     * Default options for curl.
+     */
+    public static $CURL_OPTS = array(
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_USERAGENT      => 'musicxmatch-php-0.0.1',
+    );
+
+
+    public static $STATUS_CODES = array(
+        200=>'The request was successful',
+        400=>'The request had bad syntax or was inherently impossible to be satisfied',
+        401=>'authentication failed, probably because of a bad API key',
+        402=>'a limit was reached, either you exceeded per hour requests limits or your balance is insufficient.',
+        403=>'You are not authorized to perform this operation / the api version you’re trying to use has been shut down.',
+        404=>'requested resource was not found',
+        405=>'requested method was not found',
+    );
+
+
+    protected $_base_url = 'api.musixmatch.com/ws/1.1/';
+    protected $_result   = '';
+    protected $_use_ssl  = '';
+    protected $_method   = '';
+
+    protected $_query_parameters = array();
+    protected $_endpoint = 'track.search';
+
+
+
+    /**
+     *
+     * @param string $apikey the application key
+     */
+    public function __construct($apikey, $use_ssl = false)
+    {
+        $this->_query_parameters['apikey'] = $apikey;
+        $this->_use_ssl = $use_ssl;
+    }
+
+
+    /**
+     * @return MusicXMatch
+     */
+    public function param_q($query_string)
+    {
+        $this->_query_parameters['q'] = $query_string;
+        return $this;
+    }
+
+    /**
+     * @return MusicXMatch
+     */
+    public function param_track_id($query_string)
+    {
+        $this->_query_parameters['track_id'] = $query_string;
+        return $this;
+    }
+
+    /**
+     * @param string $query_string a utf-8 artist query string
+     * @return MusicXMatch
+     */
+    public function param_q_artist($query_string)
+    {
+        $this->_query_parameters['q_artist'] = $query_string;
+        return $this;
+    }
+
+    /**
+     * @param string $query_string a utf-8 artist query string
+     * @return MusicXMatch
+     */
+    public function param_q_track($query_string)
+    {
+        $this->_query_parameters['q_track'] = $query_string;
+        return $this;
+    }
+
+    public function param_page_size($size)
+    {
+        $this->_query_parameters['page_size'] = $size;
+        return $this;
+    }
+
+    public function setEndpoint($endpoint)
+    {
+        $this->_endpoint = $endpoint;
+        return $this;
+    }
+
+
+    /**
+     * Resets parameters, except for the apikey
+     * @chainable
+     *
+     */
+    public function reset_params()
+    {
+        $apikey = $this->_query_parameters['apikey'];
+        $this->_query_parameters = array();
+        $this->_query_parameters['apikey'] = $apikey;
+        return $this;
+    }
+
+
+    /**
+     * Executes the request and returns the result
+     * @param resource $ch a custom curl resource
+     */
+    public function execute_request($ch = null)
+    {
+        $url = $this->build_query_url();
+
+        if (!$ch)
+        {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, self::$CURL_OPTS);
+        }
+
+        $query_result = curl_exec($ch);
+
+        curl_close($ch);
+
+
+        $full_result = json_decode($query_result, true);
+
+        //any error has occured
+        if (($code = $full_result['message']['header']['status_code']) != 200)
+        {
+            throw new MusicXMatchApiException($code);
+        }
+
+        return $this->_result = $full_result['message']['body'];
+
+    }
+
+
+    public function result()
+    {
+        return $this->result;
+    }
+
+
+    /**
+     * Uses the parameters and other stuff to build the query string
+     * @return string the url to be fetched
+     */
+    public function build_query_url()
+    {
+
+        //protocol
+        $url =  $this->_use_ssl ? 'https://'  : 'http://';
+
+        //base url
+        $url .= $this->_base_url;
+
+        //method - testing
+        $url .= $this->_endpoint;
+
+        $url .= '?';
+
+        foreach ($this->_query_parameters as $key=>$value)
+        {
+            $url.=$key.'='.urlencode($value).'&';
+        }
+        $url.= 'format=json';
+
+        return $url;
+
+    }
+
+}
+
+
+?>
