@@ -2,7 +2,7 @@
 
 class Pusherer
 {
-    public function post($request_data = NULL)
+    public function post($request_data = null)
     {
         $options = array(
             'cluster' => 'eu',
@@ -15,12 +15,10 @@ class Pusherer
             $options
         );
 
-        $data['message'] = 'hello world';
-        $pusher->trigger('game', $data['event'], $data);
+        $pusher->trigger('game', $request_data['event'], $request_data);
 
         $response = array('status' => $request_data);
 
         return $response;
     }
-
 }
