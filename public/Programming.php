@@ -92,7 +92,11 @@ class Programming {
 
     }
 
-		return $currentPlay;
+		if($currentPlay!==false){
+			return $currentPlay;
+		}else{
+			return array('error': 404);
+		}
 	}
 	function next() {
   	$currentPlay = false;
@@ -137,7 +141,11 @@ class Programming {
   		}
     }
 
-		return $currentPlay;
+		if($currentPlay!==false){
+			return $currentPlay;
+		}else{
+			return array('error': 404);
+		}
 
 	}
 }
