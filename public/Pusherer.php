@@ -2,7 +2,7 @@
 
 class Pusherer
 {
-    public function score()
+    public function post($request_data = NULL)
     {
         $options = array(
             'cluster' => 'eu',
@@ -18,14 +18,9 @@ class Pusherer
         $data['message'] = 'hello world';
         $pusher->trigger('game', 'score', $data);
 
-        $response = array('status' => 'success');
+        $response = array('status' => $request_data);
 
         return $response;
     }
-    public function karaoke()
-    {
-        $response = array('status' => 'success');
 
-        return $response;
-    }
 }
