@@ -16,7 +16,7 @@ class Pusherer
         );
 
         $data['message'] = 'hello world';
-        $pusher->trigger('game', 'score', $data);
+        $pusher->trigger('game', $data['event'], $data);
 
         $response = array('status' => $request_data);
 
