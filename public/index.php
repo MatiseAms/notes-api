@@ -19,4 +19,5 @@ use Luracast\Restler\Restler;
 
 $r = new Restler();
 $r->addAPIClass('Programming');
+$r->addAPIClass('Pusher');
 $r->handle();
