@@ -95,7 +95,7 @@ class Programming {
 		if($currentPlay!==false){
 			return $currentPlay;
 		}else{
-			return array('error': 404);
+			return array('error'=>404);
 		}
 	}
 	function next() {
@@ -144,7 +144,7 @@ class Programming {
 		if($currentPlay!==false){
 			return $currentPlay;
 		}else{
-			return array('error': 404);
+			return array('error'=> 404);
 		}
 
 	}
